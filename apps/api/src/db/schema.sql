@@ -10,14 +10,41 @@ CREATE SEQUENCE IF NOT EXISTS booking_ref_seq START 1000;
 CREATE SEQUENCE IF NOT EXISTS order_ref_seq START 1000;
 
 CREATE TABLE IF NOT EXISTS users (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name       text NOT NULL,
-  mobile     text,
-  email      text,
-  role       text NOT NULL CHECK (role IN ('devotee', 'admin')),
-  status     text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-  created_at timestamptz NOT NULL DEFAULT now()
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          text NOT NULL,
+  mobile        text,
+  email         text,
+  -- scrypt digest, never a plaintext password. Nullable so a database created
+  -- before authentication existed still migrates cleanly.
+  password_hash text,
+  role          text NOT NULL CHECK (role IN ('devotee', 'admin')),
+  status        text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- Runs for databases created before password_hash existed; a no-op afterwards.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text;
+
+-- Mobile and email are sign-in identifiers, so they must be unique. Partial
+-- indexes because either may be absent, and NULLs should not collide.
+CREATE UNIQUE INDEX IF NOT EXISTS users_mobile_key ON users (mobile) WHERE mobile IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users (lower(email)) WHERE email IS NOT NULL;
+
+/*
+ * Server-side sessions. Only a SHA-256 digest of each token is stored, so a
+ * database leak does not hand over live sessions. Tokens are 256 bits of
+ * randomness, so a fast digest is appropriate here — unlike passwords, there
+ * is nothing to brute force.
+ */
+CREATE TABLE IF NOT EXISTS sessions (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  token_hash text UNIQUE NOT NULL,
+  user_id    uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
 
 CREATE TABLE IF NOT EXISTS events (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),

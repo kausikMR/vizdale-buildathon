@@ -1,15 +1,15 @@
-const USER_ID_KEY = 'temple-crm.user-id'
+const TOKEN_KEY = 'temple-crm.session'
 
-export function getUserId(): string | null {
-  return localStorage.getItem(USER_ID_KEY)
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
 }
 
-export function setUserId(id: string): void {
-  localStorage.setItem(USER_ID_KEY, id)
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
 }
 
-export function clearUserId(): void {
-  localStorage.removeItem(USER_ID_KEY)
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
 }
 
 /**
@@ -42,14 +42,14 @@ export function messageFor(error: unknown): string | null {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const userId = getUserId()
+  const token = getToken()
   // Always a relative /api path so the dev server proxy handles it.
   const res = await fetch(`/api${path}`, {
     method,
     headers: {
       'content-type': 'application/json',
-      // Simulated auth: the server resolves the role from this id itself.
-      ...(userId ? { 'x-user-id': userId } : {}),
+      // Session token issued only after the password was verified.
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })

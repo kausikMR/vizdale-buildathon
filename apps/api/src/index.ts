@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import { ensureDemoPasswords } from "./auth/demoAccounts.js";
+import { deleteExpiredSessions } from "./data/sessions.js";
 import { initDb } from "./db/index.js";
 import { errorHandler } from "./errors.js";
 import { attachUser } from "./middleware.js";
@@ -23,6 +25,8 @@ app.use(errorHandler);
 // Schema and seed are applied before the port opens, so the first request never
 // races the migration.
 const db = await initDb();
+await ensureDemoPasswords();
+await deleteExpiredSessions();
 console.log(
   `Database ready (${db.driver}${db.driver === "pglite" ? " — set DATABASE_URL to use Postgres" : ""})`,
 );

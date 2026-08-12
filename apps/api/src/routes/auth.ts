@@ -1,22 +1,28 @@
 import { Router } from 'express'
-import { createUser, findUserByIdentifier, getUserById, listUsers } from '../data/users.js'
+import { MIN_PASSWORD_LENGTH, decoyHash, hashPassword, verifyPassword } from '../auth/password.js'
+import { createSession, deleteSession } from '../data/sessions.js'
+import {
+  createUser,
+  findCredentialsByIdentifier,
+  findUserByIdentifier,
+  listUsers,
+} from '../data/users.js'
 import { HttpError } from '../errors.js'
 import { requireAdmin, requireAuth } from '../middleware.js'
 
 /**
- * Auth module. Mounted at /api, so paths here are the contract's paths verbatim
- * (/auth/users, /auth/signin, /me, /devotees, /users).
+ * Auth module. Mounted at /api.
+ *
+ * Sign-in verifies a password and issues a bearer session token. The
+ * unauthenticated GET /auth/users account picker from CONTRACT.md has been
+ * removed: publishing the full account list is an enumeration vector, and it
+ * only existed to support one-click sign-in, which real credentials replace.
  */
 export const authRouter = Router()
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MOBILE_RE = /^\d{10}$/
 
-/**
- * Validation failures carry an optional `field` alongside the contract's
- * `code` and `message`, so a form can attach the message to the right input
- * (DESIGN.md section 8). Clients that ignore it still get the standard shape.
- */
 class FieldError extends HttpError {
   field: string
 
@@ -26,24 +32,29 @@ class FieldError extends HttpError {
   }
 }
 
-function validateNewUser(body: Record<string, unknown>): {
+function requireString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function validateRegistration(body: Record<string, unknown>): {
   name: string
   mobile?: string
   email?: string
+  password: string
 } {
-  const name = typeof body.name === 'string' ? body.name.trim() : ''
+  const name = requireString(body.name)
   if (name.length < 2) {
     throw new FieldError(400, 'INVALID_NAME', 'Enter your full name (at least 2 characters).', 'name')
   }
 
-  const mobile = typeof body.mobile === 'string' ? body.mobile.trim() : ''
-  const email = typeof body.email === 'string' ? body.email.trim() : ''
+  const mobile = requireString(body.mobile)
+  const email = requireString(body.email)
 
   if (!mobile && !email) {
     throw new FieldError(
       400,
       'CONTACT_REQUIRED',
-      'Enter a mobile number or an email address so we can identify you.',
+      'Enter a mobile number or an email address — you will sign in with it.',
       'mobile',
     )
   }
@@ -59,41 +70,52 @@ function validateNewUser(body: Record<string, unknown>): {
     )
   }
 
-  return { name, ...(mobile ? { mobile } : {}), ...(email ? { email } : {}) }
-}
+  // Not trimmed: leading and trailing spaces are legitimate password characters.
+  const password = typeof body.password === 'string' ? body.password : ''
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new FieldError(
+      400,
+      'PASSWORD_TOO_SHORT',
+      `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`,
+      'password',
+    )
+  }
 
-/**
- * The account picker for simulated sign-in. Deliberately unauthenticated: it is
- * what the client reads *before* anyone has signed in.
- */
-authRouter.get('/auth/users', async (_req, res) => {
-  res.json({ simulated: true, users: await listUsers() })
-})
+  return { name, ...(mobile ? { mobile } : {}), ...(email ? { email } : {}), password }
+}
 
 authRouter.post('/auth/signin', async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>
-  const userId = typeof body.userId === 'string' ? body.userId.trim() : ''
-  const identifier = typeof body.identifier === 'string' ? body.identifier.trim() : ''
+  const identifier = requireString(body.identifier)
+  const password = typeof body.password === 'string' ? body.password : ''
 
-  if (!userId && !identifier) {
+  if (!identifier) {
     throw new FieldError(
       400,
       'IDENTIFIER_REQUIRED',
-      'Choose an account, or enter your registered mobile number or email address.',
+      'Enter your registered mobile number or email address.',
       'identifier',
+    )
+  }
+  if (!password) {
+    throw new FieldError(400, 'PASSWORD_REQUIRED', 'Enter your password.', 'password')
+  }
+
+  const found = await findCredentialsByIdentifier(identifier)
+
+  // Always run the full hash, falling back to a decoy when no account matched
+  // or the account has no password set. Skipping the work would return in a
+  // fraction of the time and turn sign-in into an account-existence oracle.
+  const ok = await verifyPassword(password, found?.passwordHash ?? (await decoyHash()))
+  if (!found || !ok) {
+    throw new HttpError(
+      401,
+      'INVALID_CREDENTIALS',
+      'That mobile number, email or password is incorrect. Please check and try again.',
     )
   }
 
-  const user = userId ? await getUserById(userId) : await findUserByIdentifier(identifier)
-  if (!user) {
-    throw new FieldError(
-      404,
-      'USER_NOT_FOUND',
-      'No account matches that mobile number or email. Check it, or register instead.',
-      'identifier',
-    )
-  }
-  if (user.status !== 'active') {
+  if (found.user.status !== 'active') {
     throw new HttpError(
       403,
       'ACCOUNT_INACTIVE',
@@ -101,20 +123,23 @@ authRouter.post('/auth/signin', async (req, res) => {
     )
   }
 
-  // No token is issued: the client simply sends this id back as x-user-id.
-  res.json({ user })
+  const session = await createSession(found.user.id)
+  res.json({ ...session, user: found.user })
+})
+
+authRouter.post('/auth/signout', requireAuth, async (req, res) => {
+  const token = req.header('authorization')?.split(' ')[1]
+  if (token) await deleteSession(token)
+  res.json({ ok: true })
 })
 
 authRouter.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
 })
 
-/**
- * Resolves CONTRACT.md open decision 5 — the PRD's screen list includes
- * Register, so devotees can create their own account.
- */
+/** Registration: creates a devotee and signs them straight in. */
 authRouter.post('/users', async (req, res) => {
-  const input = validateNewUser((req.body ?? {}) as Record<string, unknown>)
+  const input = validateRegistration((req.body ?? {}) as Record<string, unknown>)
 
   for (const [field, value] of [
     ['mobile', input.mobile],
@@ -130,7 +155,15 @@ authRouter.post('/users', async (req, res) => {
     }
   }
 
-  res.status(201).json({ user: await createUser(input) })
+  const user = await createUser({
+    name: input.name,
+    mobile: input.mobile,
+    email: input.email,
+    passwordHash: await hashPassword(input.password),
+  })
+
+  const session = await createSession(user.id)
+  res.status(201).json({ ...session, user })
 })
 
 authRouter.get('/devotees', requireAdmin, async (_req, res) => {

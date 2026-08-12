@@ -29,3 +29,10 @@ npm run dev:api    # api only
 ```bash
 npm run build
 ```
+
+## Authentication
+
+Sign-in uses a password and issues a bearer session token. This **replaces the
+`x-user-id` header** described in `CONTRACT.md` section 5 — see
+[AUTH.md](AUTH.md) for what other lanes need to change, the demo accounts, and
+the limits of what is implemented.

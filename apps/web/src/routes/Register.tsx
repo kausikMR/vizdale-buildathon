@@ -14,15 +14,27 @@ export function Register() {
   const [name, setName] = useState('')
   const [mobile, setMobile] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [mismatch, setMismatch] = useState<string | null>(null)
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    // Checked here rather than server-side: the confirmation exists to catch a
+    // typo, and the server has no use for a second copy of the password.
+    if (password !== confirm) {
+      setMismatch('Both passwords must match. Re-enter your confirmation.')
+      return
+    }
+    setMismatch(null)
+
     // Nothing is cleared on failure — one rejected field must not cost the user
     // the rest of the form.
     const user = await run({
       name,
       mobile: mobile || undefined,
       email: email || undefined,
+      password,
     })
     if (user) navigate('/home', { replace: true })
   }
@@ -78,6 +90,27 @@ export function Register() {
             autoComplete="email"
             placeholder="arjun@example.org"
             error={errorFor('email')}
+            disabled={pending}
+          />
+          <Field
+            id="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+            hint="At least 8 characters."
+            error={errorFor('password')}
+            disabled={pending}
+          />
+          <Field
+            id="confirm"
+            label="Confirm password"
+            type="password"
+            value={confirm}
+            onChange={setConfirm}
+            autoComplete="new-password"
+            error={mismatch}
             disabled={pending}
           />
 

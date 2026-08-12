@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import { getUserById } from './data/users.js'
+import { findSessionUser } from './data/sessions.js'
 import { HttpError } from './errors.js'
 import type { User } from './types.js'
 
@@ -13,18 +13,26 @@ declare global {
 }
 
 /**
- * Simulated authentication (CONTRACT.md section 5). The client sends the chosen
- * seeded user's id and the server looks up the role itself:
+ * Session authentication.
  *
- *   x-user-id: 11111111-1111-1111-1111-111111111111
+ *   Authorization: Bearer <token>
  *
- * There are no passwords and no tokens. USR-01 depends on the identity being
- * resolved here rather than from a query parameter a client could change.
+ * The token is issued by POST /auth/signin only after a password has been
+ * verified. This deliberately replaces the x-user-id header from CONTRACT.md
+ * section 5: while a caller could name any user id, a password could always be
+ * bypassed, so the two cannot coexist.
  */
+function readToken(req: Request): string | undefined {
+  const header = req.header('authorization')
+  if (!header) return undefined
+  const [scheme, token] = header.split(' ')
+  return scheme?.toLowerCase() === 'bearer' && token ? token : undefined
+}
+
 export async function attachUser(req: Request, _res: Response, next: NextFunction): Promise<void> {
-  const id = req.header('x-user-id')
-  if (id) {
-    const user = await getUserById(id)
+  const token = readToken(req)
+  if (token) {
+    const user = await findSessionUser(token)
     if (user) req.user = user
   }
   next()

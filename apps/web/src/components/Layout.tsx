@@ -28,8 +28,10 @@ export function Layout() {
   // rule independently — this is only the cosmetic half.
   const items = NAV.filter((item) => !item.adminOnly || isAdmin)
 
-  const handleSignOut = () => {
-    signOut()
+  // Waits for the server to revoke the session before leaving, so the token is
+  // dead rather than merely forgotten.
+  const handleSignOut = async () => {
+    await signOut()
     navigate('/signin', { replace: true })
   }
 
@@ -48,7 +50,7 @@ export function Layout() {
               <span className="hidden sm:inline">{user?.name} · </span>
               {isAdmin ? 'Administrator' : 'Devotee'}
             </span>
-            <Button variant="ghost" onClick={handleSignOut}>
+            <Button type="button" variant="ghost" onClick={() => void handleSignOut()}>
               Sign out
             </Button>
           </div>

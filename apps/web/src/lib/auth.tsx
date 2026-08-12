@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { api, clearUserId, getUserId, setUserId } from './api'
+import { api, clearToken, getToken, setToken } from './api'
 import type { User } from './types'
 
 type AuthState = 'loading' | 'authenticated' | 'anonymous'
@@ -16,32 +16,39 @@ export interface RegisterInput {
   name: string
   mobile?: string
   email?: string
+  password: string
 }
 
 interface AuthContextValue {
   user: User | null
   state: AuthState
   isAdmin: boolean
-  signIn: (choice: { userId?: string; identifier?: string }) => Promise<User>
+  signIn: (credentials: { identifier: string; password: string }) => Promise<User>
   register: (input: RegisterInput) => Promise<User>
-  signOut: () => void
+  signOut: () => Promise<void>
+}
+
+interface SessionResponse {
+  token: string
+  expiresAt: string
+  user: User
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 /**
- * Simulated authentication (CONTRACT.md section 5). There is no password and no
- * token — the chosen account's id is kept locally and sent as x-user-id, and
- * the server resolves the role from it. Every screen that exposes this says so.
+ * Password authentication. The server verifies the password and issues a
+ * session token, which is sent as a bearer token on every later request. The
+ * password itself is never stored client-side.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [state, setState] = useState<AuthState>('loading')
 
-  // Restore the chosen account before guarded routes render, otherwise a
-  // refresh on a protected page would bounce to sign-in.
+  // Restore the session before guarded routes render, otherwise a refresh on a
+  // protected page would bounce to sign-in.
   useEffect(() => {
-    if (!getUserId()) {
+    if (!getToken()) {
       setState('anonymous')
       return
     }
@@ -54,8 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState('authenticated')
       })
       .catch(() => {
+        // Expired or revoked; drop it rather than retrying with a dead token.
         if (cancelled) return
-        clearUserId()
+        clearToken()
         setState('anonymous')
       })
     return () => {
@@ -63,33 +71,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const adopt = useCallback((next: User) => {
-    setUserId(next.id)
-    setUser(next)
+  const adopt = useCallback((session: SessionResponse) => {
+    setToken(session.token)
+    setUser(session.user)
     setState('authenticated')
-    return next
+    return session.user
   }, [])
 
   const signIn = useCallback(
-    async (choice: { userId?: string; identifier?: string }) => {
-      const { user: next } = await api.post<{ user: User }>('/auth/signin', choice)
-      return adopt(next)
+    async (credentials: { identifier: string; password: string }) => {
+      return adopt(await api.post<SessionResponse>('/auth/signin', credentials))
     },
     [adopt],
   )
 
   const register = useCallback(
     async (input: RegisterInput) => {
-      const { user: next } = await api.post<{ user: User }>('/users', input)
-      // Registration signs the new devotee straight in; there is no separate
-      // credential step to complete.
-      return adopt(next)
+      return adopt(await api.post<SessionResponse>('/users', input))
     },
     [adopt],
   )
 
-  const signOut = useCallback(() => {
-    clearUserId()
+  const signOut = useCallback(async () => {
+    // Revoke server-side so the token is dead even if a copy was taken; drop it
+    // locally regardless, since the user asked to be signed out.
+    await api.post('/auth/signout').catch(() => undefined)
+    clearToken()
     setUser(null)
     setState('anonymous')
   }, [])
