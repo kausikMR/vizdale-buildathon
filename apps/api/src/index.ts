@@ -1,16 +1,18 @@
-import express from "express";
-import cors from "cors";
+import { createApp } from "./app.js";
+import { env } from "./config.js";
+import { closeDatabase } from "./db/client.js";
 
-const app = express();
-const PORT = Number(process.env.PORT ?? 4000);
-
-app.use(cors());
-app.use(express.json());
-
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", service: "api" });
+const server = createApp().listen(env.PORT, () => {
+  console.log(`API running on http://localhost:${env.PORT}`);
 });
 
-app.listen(PORT, () => {
-  console.log(`API running on http://localhost:${PORT}`);
-});
+async function shutdown(signal: string): Promise<void> {
+  console.log(`${signal} received; shutting down.`);
+  server.close(async () => {
+    await closeDatabase();
+    process.exit(0);
+  });
+}
+
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
