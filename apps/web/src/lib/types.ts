@@ -1,21 +1,28 @@
-// Duplicated from apps/api/src/types.ts by convention — no shared package.
-export type UserRole = 'devotee' | 'admin'
-export type UserStatus = 'active' | 'suspended'
+/**
+ * Mirrored verbatim from apps/api/src/types.ts — edit both together.
+ * There is no shared package by design.
+ */
+
+export type Role = 'devotee' | 'admin'
+export type UserStatus = 'active' | 'inactive'
+export type EventStatus = 'draft' | 'published' | 'completed' | 'cancelled'
+export type SlotStatus = 'open' | 'closed'
+export type BookingStatus = 'confirmed' | 'cancelled'
+export type OrderStatus = 'confirmed' | 'ready' | 'fulfilled'
+export type MovementType = 'reserve' | 'release' | 'restock' | 'adjust'
+
+/** Rule 3. */
+export const MAX_VISITORS_PER_BOOKING = 6
+
+/** PRA-04: forward only, one step at a time. */
+export const ORDER_FLOW: OrderStatus[] = ['confirmed', 'ready', 'fulfilled']
 
 export interface User {
   id: string
   name: string
-  mobile?: string
-  email?: string
-  role: UserRole
+  mobile: string | null
+  email: string | null
+  role: Role
   status: UserStatus
   createdAt: string
-}
-
-export interface DemoAccount {
-  id: string
-  name: string
-  role: UserRole
-  status: UserStatus
-  identifier?: string
 }

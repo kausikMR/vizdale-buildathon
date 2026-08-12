@@ -1,17 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { ApiError, api } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
-import type { DemoAccount, User } from '@/lib/types'
-
-function homeFor(user: User) {
-  return user.role === 'admin' ? '/admin' : '/home'
-}
+import { Field } from '../components/Field'
+import { Button, Card, ErrorNote, Loading, PageHeader } from '../components/ui'
+import { ApiError, messageFor } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { useApi, useMutation } from '../lib/useApi'
+import type { User } from '../lib/types'
 
 export function SignIn() {
   const { signIn } = useAuth()
@@ -19,123 +13,96 @@ export function SignIn() {
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from
 
+  const { data, loading } = useApi<{ users: User[] }>('/auth/users')
+  const { run, pending, error } = useMutation(signIn)
   const [identifier, setIdentifier] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [accounts, setAccounts] = useState<DemoAccount[]>([])
 
-  useEffect(() => {
-    api<{ users: DemoAccount[] }>('/auth/demo-accounts')
-      .then(({ users }) => setAccounts(users))
-      .catch(() => setAccounts([]))
-  }, [])
-
-  const attempt = async (value: string) => {
-    if (busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const user = await signIn(value)
-      toast.success(`Welcome back, ${user.name}.`)
-      navigate(from ?? homeFor(user), { replace: true })
-    } catch (err) {
-      // Leave the field populated so the user can correct it in place.
-      const message =
-        err instanceof ApiError ? err.message : 'Could not reach the server. Please try again.'
-      setError(message)
-      toast.error(message)
-    } finally {
-      setBusy(false)
-    }
+  const go = async (choice: { userId?: string; identifier?: string }) => {
+    const user = await run(choice)
+    if (user) navigate(from ?? (user.role === 'admin' ? '/admin' : '/home'), { replace: true })
   }
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
-    void attempt(identifier)
+    // The field keeps its value on failure, so a typo is correctable in place.
+    void go({ identifier })
   }
 
+  const message = messageFor(error)
+  const fieldError = error instanceof ApiError ? error.field : undefined
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <div>
-        <h1 className="font-serif text-3xl font-bold tracking-tight">Temple CRM</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Simulated sign-in — no password or OTP is checked.
+    <div className="mx-auto max-w-md px-4 py-10">
+      <PageHeader title="Temple CRM" subtitle="Simulated sign-in — no password or OTP is checked." />
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold">Choose an account</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          These accounts are seeded for the demo.
         </p>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Use the mobile number or email you registered with.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} noValidate className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="identifier">Mobile number or email</Label>
-              <Input
-                id="identifier"
-                name="identifier"
-                autoComplete="username"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? 'identifier-error' : undefined}
-                placeholder="9800000002"
-              />
-              {error && (
-                <p id="identifier-error" role="alert" className="text-sm font-medium text-destructive">
-                  {error}
-                </p>
-              )}
-            </div>
+        {loading && <Loading label="Loading accounts…" />}
 
-            <Button type="submit" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
-
-          <p className="mt-4 text-sm text-muted-foreground">
-            New here?{' '}
-            <Link to="/register" className="font-medium text-primary underline underline-offset-4">
-              Register
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-
-      {accounts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Demo accounts</CardTitle>
-            <CardDescription>
-              Seeded for this build. Suspended accounts are shown so the blocked state is testable.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {accounts.map((account) => (
-              <Button
-                key={account.id}
-                type="button"
-                variant="outline"
-                disabled={busy || !account.identifier}
-                onClick={() => account.identifier && void attempt(account.identifier)}
-                className="h-auto justify-between gap-3 py-2 text-left"
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{account.name}</span>
-                  <span className="truncate text-xs font-normal text-muted-foreground">
-                    {account.identifier}
+        <div className="mt-4 grid gap-2">
+          {data?.users.map((user) => (
+            <Button
+              key={user.id}
+              // ui.tsx's Button does not set a type, and HTML defaults to
+              // submit — explicit here so these never submit a future form.
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => void go({ userId: user.id })}
+              className="w-full py-3"
+              // The visible text is three adjacent spans, which a screen reader
+              // would otherwise announce as one run-on string.
+              aria-label={`Sign in as ${user.name}, ${user.role}`}
+            >
+              {/* Button centres its content, so the row layout lives in here. */}
+              <span className="flex w-full items-center justify-between gap-3 text-left">
+                <span className="flex min-w-0 flex-col items-start">
+                  <span className="truncate font-semibold">{user.name}</span>
+                  <span className="truncate text-xs font-normal opacity-80">
+                    {user.mobile ?? user.email}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                  {account.role === 'admin' ? 'Admin' : 'Devotee'}
-                  {account.status === 'suspended' && ' · suspended'}
+                <span className="shrink-0 text-xs font-medium capitalize opacity-80">
+                  {user.role}
                 </span>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+              </span>
+            </Button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="mt-4 p-6">
+        <h2 className="text-lg font-semibold">Or use your details</h2>
+        <form onSubmit={onSubmit} noValidate className="mt-4 grid gap-4">
+          <Field
+            id="identifier"
+            label="Mobile number or email"
+            value={identifier}
+            onChange={setIdentifier}
+            autoComplete="username"
+            placeholder="9800000002"
+            error={fieldError === 'identifier' ? message : null}
+            disabled={pending}
+          />
+
+          {message && fieldError !== 'identifier' && <ErrorNote message={message} />}
+
+          <Button type="submit" disabled={pending} className="w-full">
+            {pending ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </form>
+
+        <p className="mt-4 text-sm text-muted-foreground">
+          New here?{' '}
+          <Link to="/register" className="font-semibold text-primary underline underline-offset-4">
+            Register
+          </Link>
+        </p>
+      </Card>
     </div>
   )
 }

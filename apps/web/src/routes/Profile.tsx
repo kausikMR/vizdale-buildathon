@@ -1,45 +1,13 @@
-import { useState, type FormEvent } from 'react'
-import { toast } from 'sonner'
-import { ContactFields, type ContactValues } from '@/components/ContactFields'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ApiError } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
+import { Card, PageHeader, StatusBadge } from '../components/ui'
+import { useAuth } from '../lib/auth'
 
+/**
+ * Read-only. The contract defines no profile-update endpoint, so nothing here
+ * claims to be editable — an input the user cannot save is worse than none.
+ */
 export function Profile() {
-  const { user, updateProfile } = useAuth()
-
-  const [values, setValues] = useState<ContactValues>({
-    name: user?.name ?? '',
-    mobile: user?.mobile ?? '',
-    email: user?.email ?? '',
-  })
-  const [error, setError] = useState<{ field?: string; message: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-
+  const { user } = useAuth()
   if (!user) return null
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      await updateProfile({
-        name: values.name,
-        mobile: values.mobile || undefined,
-        email: values.email || undefined,
-      })
-      toast.success('Profile updated.')
-    } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : 'Could not reach the server. Please try again.'
-      setError({ field: err instanceof ApiError ? err.field : undefined, message })
-      toast.error(message)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const memberSince = new Date(user.createdAt).toLocaleDateString(undefined, {
     day: 'numeric',
@@ -47,61 +15,37 @@ export function Profile() {
     year: 'numeric',
   })
 
+  const rows = [
+    { label: 'Name', value: user.name },
+    { label: 'Mobile number', value: user.mobile ?? 'Not provided' },
+    { label: 'Email address', value: user.email ?? 'Not provided' },
+    { label: 'Role', value: user.role === 'admin' ? 'Administrator' : 'Devotee' },
+    { label: 'Member since', value: memberSince },
+  ]
+
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold tracking-tight">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Keep your contact details current — they identify you at sign-in.
-        </p>
-      </div>
+    <>
+      <PageHeader title="Profile" subtitle="The details the temple holds for your account." />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Your details</CardTitle>
-          <CardDescription>
-            {user.role === 'admin' ? 'Administrator' : 'Devotee'} · member since {memberSince}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} noValidate className="grid max-w-md gap-4">
-            <ContactFields
-              values={values}
-              onChange={setValues}
-              errorField={error?.field}
-              errorMessage={error?.message}
-              disabled={busy}
-            />
+      <Card className="p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Your details</h2>
+          <StatusBadge status={user.status} />
+        </div>
 
-            {error && !error.field && (
-              <p role="alert" className="text-sm font-medium text-destructive">
-                {error.message}
-              </p>
-            )}
-
-            <div className="flex gap-2">
-              <Button type="submit" disabled={busy}>
-                {busy ? 'Saving…' : 'Save changes'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  setValues({
-                    name: user.name,
-                    mobile: user.mobile ?? '',
-                    email: user.email ?? '',
-                  })
-                  setError(null)
-                }}
-              >
-                Reset
-              </Button>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          {rows.map((row) => (
+            <div key={row.label}>
+              <dt className="text-xs text-muted-foreground">{row.label}</dt>
+              <dd className="mt-0.5 text-sm font-medium break-words">{row.value}</dd>
             </div>
-          </form>
-        </CardContent>
+          ))}
+        </dl>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          To correct any of these details, please contact the temple office.
+        </p>
       </Card>
-    </div>
+    </>
   )
 }

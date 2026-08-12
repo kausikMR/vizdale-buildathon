@@ -1,76 +1,71 @@
-import { useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ApiError, api } from '@/lib/api'
-import type { User } from '@/lib/types'
+import { Card, EmptyState, ErrorNote, Loading, PageHeader, StatusBadge } from '../components/ui'
+import { messageFor } from '../lib/api'
+import { useApi } from '../lib/useApi'
+import type { User } from '../lib/types'
 
 /**
- * Reads the admin-only endpoint, so the server-side half of AUTH-02 is
- * exercised by a real screen rather than only by the route guard.
+ * Reads the admin-only endpoint, so the server half of AUTH-02 is exercised by
+ * a real screen rather than only by the route guard.
+ *
+ * A seven-column table does not fit at 360px, so this renders a card per
+ * devotee on mobile and a table from sm: up (DESIGN.md section 6).
  */
 export function AdminDevotees() {
-  const [users, setUsers] = useState<User[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useApi<{ users: User[] }>('/devotees')
+  const message = messageFor(error)
+  const devotees = data?.users ?? []
 
-  useEffect(() => {
-    api<{ users: User[] }>('/auth/users')
-      .then(({ users: list }) => setUsers(list))
-      .catch((err) =>
-        setError(err instanceof ApiError ? err.message : 'Could not load the directory.'),
-      )
-  }, [])
+  const contactOf = (user: User) =>
+    [user.mobile, user.email].filter(Boolean).join(' · ') || 'No contact on file'
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold tracking-tight">Devotee directory</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Everyone registered on this temple's system.
-        </p>
-      </div>
+    <>
+      <PageHeader title="Devotee directory" subtitle="Everyone registered on this temple's system." />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Accounts</CardTitle>
-          <CardDescription>
-            {users ? `${users.length} registered` : 'Loading…'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <p role="alert" className="text-sm font-medium text-destructive">
-              {error}
-            </p>
-          )}
+      {loading && <Loading label="Loading devotees…" />}
+      {message && <ErrorNote message={message} />}
 
-          {users && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th scope="col" className="py-2 pr-4 font-medium">Name</th>
-                    <th scope="col" className="py-2 pr-4 font-medium">Contact</th>
-                    <th scope="col" className="py-2 pr-4 font-medium">Role</th>
-                    <th scope="col" className="py-2 font-medium">Status</th>
+      {!loading && !message && devotees.length === 0 && (
+        <EmptyState title="No devotees yet" hint="Registrations will appear here." />
+      )}
+
+      {devotees.length > 0 && (
+        <>
+          <div className="grid gap-3 sm:hidden">
+            {devotees.map((user) => (
+              <Card key={user.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold break-words">{user.name}</p>
+                  <StatusBadge status={user.status} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground break-words">{contactOf(user)}</p>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  <th scope="col" className="px-4 py-3 font-medium">Name</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Contact</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {devotees.map((user) => (
+                  <tr key={user.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-medium">{user.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{contactOf(user)}</td>
+                    {/* Status prints the word, never colour alone. */}
+                    <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
                   </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{user.name}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {[user.mobile, user.email].filter(Boolean).join(' · ')}
-                      </td>
-                      <td className="py-2 pr-4">{user.role === 'admin' ? 'Admin' : 'Devotee'}</td>
-                      {/* Status is spelled out, never colour alone. */}
-                      <td className="py-2">{user.status === 'active' ? 'Active' : 'Suspended'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+    </>
   )
 }

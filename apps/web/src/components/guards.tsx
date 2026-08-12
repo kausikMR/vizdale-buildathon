@@ -1,20 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '@/lib/auth'
-
-function Loading() {
-  return (
-    <div className="flex min-h-screen items-center justify-center" role="status" aria-live="polite">
-      <span className="text-sm text-muted-foreground">Loading…</span>
-    </div>
-  )
-}
+import { Loading } from './ui'
+import { useAuth } from '../lib/auth'
 
 /** Blocks unauthenticated access and remembers where the user was heading. */
 export function RequireAuth() {
   const { state } = useAuth()
   const location = useLocation()
 
-  if (state === 'loading') return <Loading />
+  if (state === 'loading') return <Loading label="Checking your session…" />
   if (state === 'anonymous') {
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />
   }
@@ -22,14 +15,14 @@ export function RequireAuth() {
 }
 
 /**
- * AUTH-02, client half. A devotee who types /admin is sent to their own home
- * rather than shown a forbidden page — the admin area should not appear to
- * exist. The server enforces this independently.
+ * AUTH-02, client half. A devotee who types an admin URL is sent to their own
+ * home rather than shown a forbidden page, so the admin area does not appear to
+ * exist. requireAdmin on the server is the actual gate.
  */
 export function RequireAdmin() {
   const { state, isAdmin } = useAuth()
 
-  if (state === 'loading') return <Loading />
+  if (state === 'loading') return <Loading label="Checking your session…" />
   if (state === 'anonymous') return <Navigate to="/signin" replace />
   if (!isAdmin) return <Navigate to="/home" replace />
   return <Outlet />
@@ -39,7 +32,7 @@ export function RequireAdmin() {
 export function RedirectIfSignedIn() {
   const { state, isAdmin } = useAuth()
 
-  if (state === 'loading') return <Loading />
+  if (state === 'loading') return <Loading label="Checking your session…" />
   if (state === 'authenticated') return <Navigate to={isAdmin ? '/admin' : '/home'} replace />
   return <Outlet />
 }
@@ -48,7 +41,7 @@ export function RedirectIfSignedIn() {
 export function HomeRedirect() {
   const { state, isAdmin } = useAuth()
 
-  if (state === 'loading') return <Loading />
+  if (state === 'loading') return <Loading label="Checking your session…" />
   if (state === 'anonymous') return <Navigate to="/signin" replace />
   return <Navigate to={isAdmin ? '/admin' : '/home'} replace />
 }

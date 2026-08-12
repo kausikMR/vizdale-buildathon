@@ -1,87 +1,99 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { ContactFields, type ContactValues } from '@/components/ContactFields'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ApiError } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
+import { Field } from '../components/Field'
+import { Button, Card, ErrorNote, PageHeader } from '../components/ui'
+import { ApiError, messageFor } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { useMutation } from '../lib/useApi'
 
 export function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
+  const { run, pending, error } = useMutation(register)
 
-  const [values, setValues] = useState<ContactValues>({ name: '', mobile: '', email: '' })
-  const [error, setError] = useState<{ field?: string; message: string } | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [name, setName] = useState('')
+  const [mobile, setMobile] = useState('')
+  const [email, setEmail] = useState('')
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const user = await register({
-        name: values.name,
-        mobile: values.mobile || undefined,
-        email: values.email || undefined,
-      })
-      toast.success(`Welcome, ${user.name}. Your account is ready.`)
-      navigate('/home', { replace: true })
-    } catch (err) {
-      // Values are deliberately left untouched so one bad field does not cost
-      // the user the rest of the form.
-      const message =
-        err instanceof ApiError ? err.message : 'Could not reach the server. Please try again.'
-      setError({ field: err instanceof ApiError ? err.field : undefined, message })
-      toast.error(message)
-    } finally {
-      setBusy(false)
-    }
+    // Nothing is cleared on failure — one rejected field must not cost the user
+    // the rest of the form.
+    const user = await run({
+      name,
+      mobile: mobile || undefined,
+      email: email || undefined,
+    })
+    if (user) navigate('/home', { replace: true })
   }
 
+  const message = messageFor(error)
+  const field = error instanceof ApiError ? error.field : undefined
+  const errorFor = (name: string) => (field === name ? message : null)
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <div>
-        <h1 className="font-serif text-3xl font-bold tracking-tight">Temple CRM</h1>
+    <div className="mx-auto max-w-md px-4 py-10">
+      <PageHeader
+        title="Temple CRM"
+        subtitle="Simulated registration — no identity documents are collected."
+      />
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold">Register</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Simulated registration — no identity documents are collected.
+          Create a devotee account to book darshan and reserve prasadam.
         </p>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Register</CardTitle>
-          <CardDescription>Create a devotee account to book darshan and prasadam.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} noValidate className="grid gap-4">
-            <ContactFields
-              values={values}
-              onChange={setValues}
-              errorField={error?.field}
-              errorMessage={error?.message}
-              disabled={busy}
-            />
+        <form onSubmit={onSubmit} noValidate className="mt-4 grid gap-4">
+          <Field
+            id="name"
+            label="Full name"
+            value={name}
+            onChange={setName}
+            autoComplete="name"
+            placeholder="Arjun"
+            error={errorFor('name')}
+            disabled={pending}
+          />
+          <Field
+            id="mobile"
+            label="Mobile number"
+            optional
+            type="tel"
+            value={mobile}
+            onChange={setMobile}
+            autoComplete="tel"
+            placeholder="9800000002"
+            hint="Mobile or email — at least one is required."
+            error={errorFor('mobile')}
+            disabled={pending}
+          />
+          <Field
+            id="email"
+            label="Email address"
+            optional
+            type="email"
+            value={email}
+            onChange={setEmail}
+            autoComplete="email"
+            placeholder="arjun@example.org"
+            error={errorFor('email')}
+            disabled={pending}
+          />
 
-            {error && !error.field && (
-              <p role="alert" className="text-sm font-medium text-destructive">
-                {error.message}
-              </p>
-            )}
+          {message && !field && <ErrorNote message={message} />}
 
-            <Button type="submit" disabled={busy}>
-              {busy ? 'Creating account…' : 'Create account'}
-            </Button>
-          </form>
+          <Button type="submit" disabled={pending} className="w-full">
+            {pending ? 'Creating account…' : 'Create account'}
+          </Button>
+        </form>
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            Already registered?{' '}
-            <Link to="/signin" className="font-medium text-primary underline underline-offset-4">
-              Sign in
-            </Link>
-          </p>
-        </CardContent>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Already registered?{' '}
+          <Link to="/signin" className="font-semibold text-primary underline underline-offset-4">
+            Sign in
+          </Link>
+        </p>
       </Card>
     </div>
   )
