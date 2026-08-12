@@ -1,3 +1,4 @@
+import { ArrowIcon } from '../icons'
 import { Card } from '../ui'
 import { AvailabilityBadge } from './AvailabilityBadge'
 import { PrasadamImage } from './PrasadamImage'
@@ -11,10 +12,26 @@ function formatPrice(value: string): string {
   }).format(Number(value))
 }
 
-export function PrasadamCard({ item }: { item: PrasadamItem }) {
+export function PrasadamCard({
+  item,
+  onSelect,
+}: {
+  item: PrasadamItem
+  onSelect: (itemId: string) => void
+}) {
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <PrasadamImage className="aspect-[4/3] w-full" name={item.name} />
+      <a
+        aria-label={`View details for ${item.name}`}
+        className="block overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        href={`/prasadam/${item.id}`}
+        onClick={(event) => {
+          event.preventDefault()
+          onSelect(item.id)
+        }}
+      >
+        <PrasadamImage className="aspect-[4/3] w-full transition duration-300 hover:scale-[1.02]" name={item.name} />
+      </a>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-serif text-lg font-bold leading-snug">{item.name}</h2>
@@ -33,6 +50,16 @@ export function PrasadamCard({ item }: { item: PrasadamItem }) {
               {item.stock === 0 ? 'Currently unavailable' : 'Available at the temple counter'}
             </p>
           </div>
+          <a
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-bold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            href={`/prasadam/${item.id}`}
+            onClick={(event) => {
+              event.preventDefault()
+              onSelect(item.id)
+            }}
+          >
+            View details <ArrowIcon className="size-4" />
+          </a>
         </div>
       </div>
     </Card>

@@ -5,7 +5,13 @@ import { PrasadamCard } from '../components/prasadam/PrasadamCard'
 import { Button, Card, EmptyState, ErrorNote, Input, Loading, PageHeader } from '../components/ui'
 import { usePrasadam } from '../lib/usePrasadam'
 
-export function PrasadamPage({ userId }: { userId: string }) {
+export function PrasadamPage({
+  userId,
+  onSelect,
+}: {
+  userId: string
+  onSelect: (itemId: string) => void
+}) {
   const { items, loading, error, reload } = usePrasadam(userId)
   const [query, setQuery] = useState('')
   const filteredItems = useMemo(() => {
@@ -83,7 +89,7 @@ export function PrasadamPage({ userId }: { userId: string }) {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((item) => (
-              <PrasadamCard item={item} key={item.id} />
+              <PrasadamCard item={item} key={item.id} onSelect={onSelect} />
             ))}
           </div>
         )}

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Layout, type AppPage } from './components/Layout'
 import type { DemoUser } from './lib/types'
 import { AdminInventoryPage } from './pages/AdminInventoryPage'
+import { PrasadamDetailPage } from './pages/PrasadamDetailPage'
 import { PrasadamPage } from './pages/PrasadamPage'
 
 const demoUsers: DemoUser[] = [
@@ -23,27 +24,57 @@ const demoUsers: DemoUser[] = [
   },
 ]
 
+type AppRoute =
+  | { page: 'prasadam'; itemId?: string }
+  | { page: 'inventory' }
+
+function routeFromPath(): AppRoute {
+  const detailMatch = window.location.pathname.match(/^\/prasadam\/([^/]+)\/?$/)
+  if (detailMatch) return { page: 'prasadam', itemId: decodeURIComponent(detailMatch[1]) }
+  if (window.location.pathname === '/inventory') return { page: 'inventory' }
+  return { page: 'prasadam' }
+}
+
 function App() {
   const [user, setUser] = useState(demoUsers[0])
-  const [page, setPage] = useState<AppPage>('inventory')
+  const [route, setRoute] = useState<AppRoute>(routeFromPath)
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(routeFromPath())
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  function navigate(page: AppPage, itemId?: string) {
+    const path = page === 'inventory' ? '/inventory' : itemId ? `/prasadam/${itemId}` : '/prasadam'
+    window.history.pushState({}, '', path)
+    setRoute(page === 'inventory' ? { page } : { page, itemId })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   function changeUser(nextUser: DemoUser) {
     setUser(nextUser)
-    if (nextUser.role !== 'admin') setPage('prasadam')
+    if (nextUser.role !== 'admin' && route.page === 'inventory') navigate('prasadam')
   }
 
   return (
     <Layout
-      onPageChange={setPage}
+      onPageChange={navigate}
       onUserChange={changeUser}
-      page={page}
+      page={route.page}
       user={user}
       users={demoUsers}
     >
-      {page === 'inventory' && user.role === 'admin' ? (
+      {route.page === 'inventory' && user.role === 'admin' ? (
         <AdminInventoryPage userId={user.id} />
+      ) : route.page === 'prasadam' && route.itemId ? (
+        <PrasadamDetailPage
+          itemId={route.itemId}
+          onBack={() => navigate('prasadam')}
+          userId={user.id}
+        />
       ) : (
-        <PrasadamPage userId={user.id} />
+        <PrasadamPage onSelect={(itemId) => navigate('prasadam', itemId)} userId={user.id} />
       )}
     </Layout>
   )
