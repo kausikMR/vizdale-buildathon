@@ -8,7 +8,8 @@ import type { ReactNode } from 'react'
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-lg border border-border bg-card text-card-foreground shadow-sm ${className}`}
+      className={`rounded-lg border border-border bg-card text-card-foreground shadow-sm transition-shadow
+        duration-200 hover:shadow-md ${className}`}
     >
       {children}
     </div>
@@ -104,5 +105,75 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
 export function Placeholder({ screen, owner }: { screen: string; owner: string }) {
   return (
     <EmptyState title={`${screen} — not built yet`} hint={`This screen belongs to the ${owner}.`} />
+  )
+}
+
+/**
+ * Signature ornament: a single-line gopuram (temple tower) silhouette. Used
+ * once, above the sign-in title — the one place in the product that earns a
+ * decorative flourish. Pure line art in `currentColor` so it follows the
+ * surrounding text color in both themes; purely decorative, hence aria-hidden.
+ */
+export function TempleArch({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 120 56"
+      aria-hidden="true"
+      className={`mx-auto text-primary ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="60" cy="4.5" r="2.2" fill="currentColor" stroke="none" />
+      <path d="M60 6.7 V11" />
+      <path d="M34 30 C34 17 45 11 60 11 C75 11 86 17 86 30" />
+      <path d="M28 30 H92" />
+      <path d="M32 30 V50" />
+      <path d="M88 30 V50" />
+      <path d="M24 50 H96" />
+      <circle cx="60" cy="27" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="50" cy="29" r="1" fill="currentColor" stroke="none" />
+      <circle cx="70" cy="29" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/**
+ * Kolam-inspired dot rule: a quiet section divider evoking the dot lattices
+ * drawn at a temple threshold. Decorative only — never a substitute for a real
+ * heading or landmark.
+ */
+export function Divider({ className = '' }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`flex items-center justify-center gap-2.5 py-1 text-accent ${className}`}
+    >
+      {[0.4, 0.7, 1, 0.7, 0.4].map((scale, i) => (
+        <span
+          key={i}
+          className="block rounded-full bg-current"
+          style={{ width: `${scale * 5}px`, height: `${scale * 5}px`, opacity: 0.5 + scale * 0.3 }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * A booking or order reference, styled like a small brass plaque rather than
+ * bare text — it is the one thing a devotee needs to remember or hand to
+ * staff, so it should look like it matters.
+ */
+export function ReferencePlaque({ value, className = '' }: { value: string; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1
+        font-mono text-sm font-semibold tracking-wide text-accent-foreground ${className}`}
+    >
+      {value}
+    </span>
   )
 }
