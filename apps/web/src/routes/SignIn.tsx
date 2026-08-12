@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Button, Card, ErrorNote, Loading, TempleArch } from "../components/ui";
+import { Button, Card, ErrorNote, FloatingPetals, Loading, TempleArch } from "../components/ui";
+import { templeImages } from "../lib/images";
 import { messageFor, useAuth } from "../lib/auth";
 import type { Role } from "../lib/types";
 
@@ -76,11 +77,24 @@ export function SignIn() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
+      {/* A real gopuram photograph, heavily dimmed so it reads as atmosphere
+          behind the form rather than competing with it. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-cover bg-center opacity-[0.16]"
+        style={{ backgroundImage: `url(${templeImages.gopuram()})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
       <div className="temple-pattern pointer-events-none absolute inset-0" />
+      <FloatingPetals />
 
       <div className="relative w-full max-w-md temple-rise-in">
-        <div className="mb-6 text-center">
-          <TempleArch className="h-14 w-28" />
+        <div className="relative mb-6 text-center">
+          <div
+            aria-hidden="true"
+            className="diya-glow absolute inset-x-0 top-1 mx-auto h-16 w-16 rounded-full bg-accent blur-xl"
+          />
+          <TempleArch className="relative h-14 w-28" />
           <h1 className="mt-2 font-serif text-3xl font-bold tracking-tight">Temple CRM</h1>
           <p className="mt-1 text-sm text-muted-foreground">Darshan booking and management</p>
         </div>

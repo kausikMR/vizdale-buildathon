@@ -3,38 +3,44 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.9856 0.0084 56.3169);
-  --foreground: oklch(0.3353 0.0132 2.7676);
-  --card: oklch(1.0000 0 0);
-  --card-foreground: oklch(0.3353 0.0132 2.7676);
-  --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.3353 0.0132 2.7676);
-  --primary: oklch(0.7357 0.1641 34.7091);
+  /* Marigold-yellow and vermilion-red — the two colors of a temple's outer
+     wall and the flowers strung across its doorway. */
+  --background: oklch(0.9750 0.0300 90);
+  --foreground: oklch(0.2900 0.0550 22);
+  --card: oklch(0.9950 0.0120 85);
+  --card-foreground: oklch(0.2900 0.0550 22);
+  --popover: oklch(0.9950 0.0120 85);
+  --popover-foreground: oklch(0.2900 0.0550 22);
+  --primary: oklch(0.5600 0.2050 26);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.9596 0.0200 28.9029);
-  --secondary-foreground: oklch(0.5587 0.1294 32.7364);
-  --muted: oklch(0.9656 0.0176 39.4009);
-  --muted-foreground: oklch(0.5534 0.0116 58.0708);
-  --accent: oklch(0.8278 0.1131 57.9984);
-  --accent-foreground: oklch(0.3353 0.0132 2.7676);
-  --destructive: oklch(0.6122 0.2082 22.2410);
+  --secondary: oklch(0.9150 0.0850 85);
+  --secondary-foreground: oklch(0.4200 0.1450 25);
+  --muted: oklch(0.9450 0.0450 85);
+  --muted-foreground: oklch(0.4600 0.0500 35);
+  --accent: oklch(0.8100 0.1550 85);
+  --accent-foreground: oklch(0.3000 0.0700 30);
+  --destructive: oklch(0.5100 0.2250 22);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.9296 0.0370 38.6868);
-  --input: oklch(0.9296 0.0370 38.6868);
-  --ring: oklch(0.7357 0.1641 34.7091);
-  --chart-1: oklch(0.7357 0.1641 34.7091);
-  --chart-2: oklch(0.8278 0.1131 57.9984);
-  --chart-3: oklch(0.8773 0.0763 54.9314);
-  --chart-4: oklch(0.8200 0.1054 40.8859);
-  --chart-5: oklch(0.6368 0.1306 32.0721);
-  --sidebar: oklch(0.9656 0.0176 39.4009);
-  --sidebar-foreground: oklch(0.3353 0.0132 2.7676);
-  --sidebar-primary: oklch(0.7357 0.1641 34.7091);
+  --border: oklch(0.8850 0.0600 80);
+  --input: oklch(0.8850 0.0600 80);
+  --ring: oklch(0.5600 0.2050 26);
+  --chart-1: oklch(0.5600 0.2050 26);
+  --chart-2: oklch(0.8100 0.1550 85);
+  --chart-3: oklch(0.6600 0.1900 35);
+  --chart-4: oklch(0.7200 0.1650 60);
+  --chart-5: oklch(0.4200 0.1600 20);
+  --sidebar: oklch(0.9450 0.0450 85);
+  --sidebar-foreground: oklch(0.2900 0.0550 22);
+  --sidebar-primary: oklch(0.5600 0.2050 26);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.8278 0.1131 57.9984);
-  --sidebar-accent-foreground: oklch(0.3353 0.0132 2.7676);
-  --sidebar-border: oklch(0.9296 0.0370 38.6868);
-  --sidebar-ring: oklch(0.7357 0.1641 34.7091);
+  --sidebar-accent: oklch(0.8100 0.1550 85);
+  --sidebar-accent-foreground: oklch(0.3000 0.0700 30);
+  --sidebar-border: oklch(0.8850 0.0600 80);
+  --sidebar-ring: oklch(0.5600 0.2050 26);
+  /* Deep maroon banner — a shade darker and more purple-red than --primary,
+     the way a temple's inner sanctum reads darker than its outer wall. */
+  --banner: oklch(0.3300 0.1300 8);
+  --banner-foreground: oklch(0.9800 0.0200 85);
   --font-sans: Montserrat, sans-serif;
   --font-serif: Merriweather, serif;
   --font-mono: Ubuntu Mono, monospace;
@@ -58,38 +64,41 @@
 }
 
 .dark {
-  --background: oklch(0.2569 0.0169 352.4042);
-  --foreground: oklch(0.9397 0.0119 51.3156);
-  --card: oklch(0.3184 0.0176 341.4465);
-  --card-foreground: oklch(0.9397 0.0119 51.3156);
-  --popover: oklch(0.3184 0.0176 341.4465);
-  --popover-foreground: oklch(0.9397 0.0119 51.3156);
-  --primary: oklch(0.7357 0.1641 34.7091);
+  /* Same marigold-and-vermilion pair, lit by lamplight rather than daylight. */
+  --background: oklch(0.2000 0.0450 20);
+  --foreground: oklch(0.9450 0.0400 85);
+  --card: oklch(0.2550 0.0500 20);
+  --card-foreground: oklch(0.9450 0.0400 85);
+  --popover: oklch(0.2550 0.0500 20);
+  --popover-foreground: oklch(0.9450 0.0400 85);
+  --primary: oklch(0.6300 0.2100 26);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.3637 0.0203 342.2664);
-  --secondary-foreground: oklch(0.9397 0.0119 51.3156);
-  --muted: oklch(0.2848 0.0159 343.6554);
-  --muted-foreground: oklch(0.8378 0.0237 52.6346);
-  --accent: oklch(0.8278 0.1131 57.9984);
-  --accent-foreground: oklch(0.2569 0.0169 352.4042);
-  --destructive: oklch(0.6122 0.2082 22.2410);
+  --secondary: oklch(0.3200 0.0650 22);
+  --secondary-foreground: oklch(0.9200 0.0500 85);
+  --muted: oklch(0.2800 0.0500 20);
+  --muted-foreground: oklch(0.8100 0.0600 80);
+  --accent: oklch(0.7600 0.1550 85);
+  --accent-foreground: oklch(0.2200 0.0450 22);
+  --destructive: oklch(0.5800 0.2250 22);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.3637 0.0203 342.2664);
-  --input: oklch(0.3637 0.0203 342.2664);
-  --ring: oklch(0.7357 0.1641 34.7091);
-  --chart-1: oklch(0.7357 0.1641 34.7091);
-  --chart-2: oklch(0.8278 0.1131 57.9984);
-  --chart-3: oklch(0.8773 0.0763 54.9314);
-  --chart-4: oklch(0.8200 0.1054 40.8859);
-  --chart-5: oklch(0.6368 0.1306 32.0721);
-  --sidebar: oklch(0.2569 0.0169 352.4042);
-  --sidebar-foreground: oklch(0.9397 0.0119 51.3156);
-  --sidebar-primary: oklch(0.7357 0.1641 34.7091);
+  --border: oklch(0.3400 0.0600 22);
+  --input: oklch(0.3400 0.0600 22);
+  --ring: oklch(0.6300 0.2100 26);
+  --chart-1: oklch(0.6300 0.2100 26);
+  --chart-2: oklch(0.7600 0.1550 85);
+  --chart-3: oklch(0.6900 0.1900 40);
+  --chart-4: oklch(0.7500 0.1650 65);
+  --chart-5: oklch(0.5200 0.1800 22);
+  --sidebar: oklch(0.2000 0.0450 20);
+  --sidebar-foreground: oklch(0.9450 0.0400 85);
+  --sidebar-primary: oklch(0.6300 0.2100 26);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.8278 0.1131 57.9984);
-  --sidebar-accent-foreground: oklch(0.2569 0.0169 352.4042);
-  --sidebar-border: oklch(0.3637 0.0203 342.2664);
-  --sidebar-ring: oklch(0.7357 0.1641 34.7091);
+  --sidebar-accent: oklch(0.7600 0.1550 85);
+  --sidebar-accent-foreground: oklch(0.2200 0.0450 22);
+  --sidebar-border: oklch(0.3400 0.0600 22);
+  --sidebar-ring: oklch(0.6300 0.2100 26);
+  --banner: oklch(0.2200 0.1000 8);
+  --banner-foreground: oklch(0.9600 0.0300 85);
   --font-sans: Montserrat, sans-serif;
   --font-serif: Merriweather, serif;
   --font-mono: Ubuntu Mono, monospace;
@@ -143,6 +152,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-banner: var(--banner);
+  --color-banner-foreground: var(--banner-foreground);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -206,5 +217,94 @@
 @media (prefers-reduced-motion: reduce) {
   .temple-rise-in {
     animation: none;
+  }
+}
+
+/*
+ * Floating petals — a handful of marigold-petal marks drifting down and
+ * swaying, the way loose flowers settle after being strung into a garland.
+ * Each .petal is positioned via inline custom properties set in JSX
+ * (--x, --delay, --duration, --drift) so the keyframe stays generic.
+ */
+@keyframes petal-fall {
+  0% {
+    transform: translate(0, -10vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  90% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(var(--drift, 24px), 110vh) rotate(160deg);
+    opacity: 0;
+  }
+}
+
+.petal {
+  position: absolute;
+  top: 0;
+  left: var(--x, 50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 60% 10% 60% 10%;
+  background: var(--petal-color, var(--accent));
+  animation: petal-fall var(--duration, 14s) linear var(--delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .petal {
+    display: none;
+  }
+}
+
+/* Slow ambient glow behind the temple arch mark — a diya's flame breathing
+   rather than flickering. */
+@keyframes diya-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.08);
+  }
+}
+
+.diya-glow {
+  animation: diya-glow 3.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diya-glow {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
+/* Slow drift on the header's gradient rule — a lamp-lit shimmer, not a
+   progress bar. Wide gradient so the moving window never looks like loading. */
+@keyframes rule-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.rule-shimmer {
+  background-size: 200% 100%;
+  animation: rule-shimmer 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rule-shimmer {
+    animation: none;
+    background-position: 0% 50%;
   }
 }
