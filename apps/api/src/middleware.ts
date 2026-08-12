@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
-import { getSession, getUser } from './store.js'
-import type { User, UserRole } from './types.js'
+import { getUserById } from './data/users.js'
+import { HttpError } from './errors.js'
+import type { User } from './types.js'
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -11,54 +12,51 @@ declare global {
   }
 }
 
-function readToken(req: Request): string | undefined {
-  const header = req.header('authorization')
-  if (!header) return undefined
-  const [scheme, token] = header.split(' ')
-  return scheme?.toLowerCase() === 'bearer' ? token : undefined
-}
-
-/** Attaches req.user when a valid session token is present. Never rejects. */
-export function attachUser(req: Request, _res: Response, next: NextFunction): void {
-  const token = readToken(req)
-  if (token) {
-    const session = getSession(token)
-    if (session) req.user = getUser(session.userId)
+/**
+ * Simulated authentication (CONTRACT.md section 5). The client sends the chosen
+ * seeded user's id and the server looks up the role itself:
+ *
+ *   x-user-id: 11111111-1111-1111-1111-111111111111
+ *
+ * There are no passwords and no tokens. USR-01 depends on the identity being
+ * resolved here rather than from a query parameter a client could change.
+ */
+export async function attachUser(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  const id = req.header('x-user-id')
+  if (id) {
+    const user = await getUserById(id)
+    if (user) req.user = user
   }
   next()
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   if (!req.user) {
-    res.status(401).json({
-      error: { code: 'NOT_SIGNED_IN', message: 'Please sign in to continue.' },
-    })
-    return
+    throw new HttpError(403, 'NOT_SIGNED_IN', 'Please sign in to continue.')
+  }
+  if (req.user.status !== 'active') {
+    throw new HttpError(
+      403,
+      'ACCOUNT_INACTIVE',
+      'This account is no longer active. Please contact the temple office.',
+    )
   }
   next()
 }
 
 /**
- * Server-side half of AUTH-02. Hiding admin routes in the UI is not enough —
- * a devotee token must be rejected here too.
+ * AUTH-02. Hiding admin navigation in the UI is cosmetic — this is the actual
+ * gate. A devotee cannot reach admin data by editing the frontend.
  */
-export function requireRole(role: UserRole) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({
-        error: { code: 'NOT_SIGNED_IN', message: 'Please sign in to continue.' },
-      })
-      return
-    }
-    if (req.user.role !== role) {
-      res.status(403).json({
-        error: {
-          code: 'FORBIDDEN',
-          message: 'This area is only available to temple administrators.',
-        },
-      })
-      return
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (req.user!.role !== 'admin') {
+      throw new HttpError(
+        403,
+        'ADMIN_ONLY',
+        'This area is only available to temple administrators.',
+      )
     }
     next()
-  }
+  })
 }

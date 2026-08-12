@@ -1,181 +1,138 @@
 import { Router } from 'express'
-import { requireAuth, requireRole } from '../middleware.js'
-import {
-  createSession,
-  createUser,
-  deleteSession,
-  findUserByIdentifier,
-  listUsers,
-  updateUser,
-} from '../store.js'
+import { createUser, findUserByIdentifier, getUserById, listUsers } from '../data/users.js'
+import { HttpError } from '../errors.js'
+import { requireAdmin, requireAuth } from '../middleware.js'
 
+/**
+ * Auth module. Mounted at /api, so paths here are the contract's paths verbatim
+ * (/auth/users, /auth/signin, /me, /devotees, /users).
+ */
 export const authRouter = Router()
-
-type FieldError = { code: string; message: string; field?: string }
-
-function fail(res: import('express').Response, status: number, error: FieldError) {
-  res.status(status).json({ error })
-}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MOBILE_RE = /^\d{10}$/
 
 /**
- * Shared validation for register and profile update. Returns the cleaned
- * contact fields, or the first problem found. Messages are written to be
- * actionable (EXP-01) rather than merely correct.
+ * Validation failures carry an optional `field` alongside the contract's
+ * `code` and `message`, so a form can attach the message to the right input
+ * (DESIGN.md section 8). Clients that ignore it still get the standard shape.
  */
-function validateContact(input: { name?: unknown; mobile?: unknown; email?: unknown }):
-  | { ok: true; value: { name: string; mobile?: string; email?: string } }
-  | { ok: false; error: FieldError } {
-  const name = typeof input.name === 'string' ? input.name.trim() : ''
-  if (name.length < 2) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_NAME', message: 'Enter your full name (at least 2 characters).', field: 'name' },
-    }
-  }
+class FieldError extends HttpError {
+  field: string
 
-  const mobile = typeof input.mobile === 'string' ? input.mobile.trim() : ''
-  const email = typeof input.email === 'string' ? input.email.trim() : ''
-
-  if (!mobile && !email) {
-    return {
-      ok: false,
-      error: {
-        code: 'CONTACT_REQUIRED',
-        message: 'Enter a mobile number or an email address so we can identify you.',
-        field: 'mobile',
-      },
-    }
-  }
-  if (mobile && !MOBILE_RE.test(mobile.replace(/[\s\-+()]/g, '').slice(-10))) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_MOBILE', message: 'Enter a 10-digit mobile number.', field: 'mobile' },
-    }
-  }
-  if (email && !EMAIL_RE.test(email)) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_EMAIL', message: 'Enter a valid email address, like name@example.org.', field: 'email' },
-    }
-  }
-
-  return {
-    ok: true,
-    value: { name, ...(mobile ? { mobile } : {}), ...(email ? { email } : {}) },
+  constructor(status: number, code: string, message: string, field: string) {
+    super(status, code, message)
+    this.field = field
   }
 }
 
+function validateNewUser(body: Record<string, unknown>): {
+  name: string
+  mobile?: string
+  email?: string
+} {
+  const name = typeof body.name === 'string' ? body.name.trim() : ''
+  if (name.length < 2) {
+    throw new FieldError(400, 'INVALID_NAME', 'Enter your full name (at least 2 characters).', 'name')
+  }
+
+  const mobile = typeof body.mobile === 'string' ? body.mobile.trim() : ''
+  const email = typeof body.email === 'string' ? body.email.trim() : ''
+
+  if (!mobile && !email) {
+    throw new FieldError(
+      400,
+      'CONTACT_REQUIRED',
+      'Enter a mobile number or an email address so we can identify you.',
+      'mobile',
+    )
+  }
+  if (mobile && !MOBILE_RE.test(mobile.replace(/[\s\-+()]/g, '').slice(-10))) {
+    throw new FieldError(400, 'INVALID_MOBILE', 'Enter a 10-digit mobile number.', 'mobile')
+  }
+  if (email && !EMAIL_RE.test(email)) {
+    throw new FieldError(
+      400,
+      'INVALID_EMAIL',
+      'Enter a valid email address, like name@example.org.',
+      'email',
+    )
+  }
+
+  return { name, ...(mobile ? { mobile } : {}), ...(email ? { email } : {}) }
+}
+
 /**
- * Seeded accounts offered as one-tap sign-in. Simulated only — this endpoint
- * would not exist against a real identity provider.
+ * The account picker for simulated sign-in. Deliberately unauthenticated: it is
+ * what the client reads *before* anyone has signed in.
  */
-authRouter.get('/demo-accounts', (_req, res) => {
-  res.json({
-    simulated: true,
-    users: listUsers().map((u) => ({
-      id: u.id,
-      name: u.name,
-      role: u.role,
-      status: u.status,
-      identifier: u.mobile ?? u.email,
-    })),
-  })
+authRouter.get('/auth/users', async (_req, res) => {
+  res.json({ simulated: true, users: await listUsers() })
 })
 
-authRouter.post('/signin', (req, res) => {
-  const identifier = typeof req.body?.identifier === 'string' ? req.body.identifier.trim() : ''
-  if (!identifier) {
-    return fail(res, 400, {
-      code: 'IDENTIFIER_REQUIRED',
-      message: 'Enter your registered mobile number or email address.',
-      field: 'identifier',
-    })
+authRouter.post('/auth/signin', async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const userId = typeof body.userId === 'string' ? body.userId.trim() : ''
+  const identifier = typeof body.identifier === 'string' ? body.identifier.trim() : ''
+
+  if (!userId && !identifier) {
+    throw new FieldError(
+      400,
+      'IDENTIFIER_REQUIRED',
+      'Choose an account, or enter your registered mobile number or email address.',
+      'identifier',
+    )
   }
 
-  const user = findUserByIdentifier(identifier)
+  const user = userId ? await getUserById(userId) : await findUserByIdentifier(identifier)
   if (!user) {
-    return fail(res, 404, {
-      code: 'USER_NOT_FOUND',
-      message: 'No account matches that mobile number or email. Check it, or register instead.',
-      field: 'identifier',
-    })
+    throw new FieldError(
+      404,
+      'USER_NOT_FOUND',
+      'No account matches that mobile number or email. Check it, or register instead.',
+      'identifier',
+    )
   }
-  if (user.status === 'suspended') {
-    return fail(res, 403, {
-      code: 'ACCOUNT_SUSPENDED',
-      message: 'This account is suspended. Please contact the temple office.',
-    })
-  }
-
-  const session = createSession(user.id)
-  res.json({ token: session.token, user })
-})
-
-authRouter.post('/register', (req, res) => {
-  const validated = validateContact(req.body ?? {})
-  if (!validated.ok) return fail(res, 400, validated.error)
-
-  const { name, mobile, email } = validated.value
-
-  for (const [field, value] of [
-    ['mobile', mobile],
-    ['email', email],
-  ] as const) {
-    if (value && findUserByIdentifier(value)) {
-      return fail(res, 409, {
-        code: 'ALREADY_REGISTERED',
-        message: `That ${field === 'mobile' ? 'mobile number' : 'email address'} is already registered. Sign in instead.`,
-        field,
-      })
-    }
+  if (user.status !== 'active') {
+    throw new HttpError(
+      403,
+      'ACCOUNT_INACTIVE',
+      'This account is no longer active. Please contact the temple office.',
+    )
   }
 
-  // Registration always creates a devotee. Admins are provisioned by the temple.
-  const user = createUser({ name, mobile, email, role: 'devotee' })
-  const session = createSession(user.id)
-  res.status(201).json({ token: session.token, user })
-})
-
-authRouter.post('/signout', (req, res) => {
-  const token = req.header('authorization')?.split(' ')[1]
-  if (token) deleteSession(token)
-  res.json({ ok: true })
+  // No token is issued: the client simply sends this id back as x-user-id.
+  res.json({ user })
 })
 
 authRouter.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
 })
 
-authRouter.patch('/me', requireAuth, (req, res) => {
-  const validated = validateContact(req.body ?? {})
-  if (!validated.ok) return fail(res, 400, validated.error)
-
-  const { name, mobile, email } = validated.value
-  const me = req.user!
+/**
+ * Resolves CONTRACT.md open decision 5 — the PRD's screen list includes
+ * Register, so devotees can create their own account.
+ */
+authRouter.post('/users', async (req, res) => {
+  const input = validateNewUser((req.body ?? {}) as Record<string, unknown>)
 
   for (const [field, value] of [
-    ['mobile', mobile],
-    ['email', email],
+    ['mobile', input.mobile],
+    ['email', input.email],
   ] as const) {
-    if (!value) continue
-    const owner = findUserByIdentifier(value)
-    if (owner && owner.id !== me.id) {
-      return fail(res, 409, {
-        code: 'ALREADY_REGISTERED',
-        message: `That ${field === 'mobile' ? 'mobile number' : 'email address'} belongs to another account.`,
+    if (value && (await findUserByIdentifier(value))) {
+      throw new FieldError(
+        409,
+        'ALREADY_REGISTERED',
+        `That ${field === 'mobile' ? 'mobile number' : 'email address'} is already registered. Sign in instead.`,
         field,
-      })
+      )
     }
   }
 
-  const user = updateUser(me.id, { name, mobile: mobile ?? '', email: email ?? '' })
-  res.json({ user })
+  res.status(201).json({ user: await createUser(input) })
 })
 
-/** Admin-only. Proves role enforcement lives on the server, not just the UI. */
-authRouter.get('/users', requireRole('admin'), (_req, res) => {
-  res.json({ users: listUsers() })
+authRouter.get('/devotees', requireAdmin, async (_req, res) => {
+  res.json({ users: await listUsers('devotee') })
 })
